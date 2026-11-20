@@ -1,0 +1,337 @@
+hbase:001:0> # ---------------------------------------------------------------------------
+hbase:002:0> # 03_demo_queries.hbase - core HBase access patterns on the real FBI data.
+hbase:003:0> # Run all:   docker exec -it ucr-hmaster hbase shell /hbase-scripts/03_demo_queries.hbase
+hbase:004:0> # (or open `docker exec -it ucr-hmaster hbase shell`
+hbase:005:0> #  and paste one block at a time)
+hbase:006:0> # ---------------------------------------------------------------------------
+hbase:007:0> 
+hbase:008:0> # ===== A. SINGLE-ROW GET ===================================================
+hbase:009:0> # LAPD (ORI CA01942), July 2024 - every column of one agency-month
+hbase:010:0> get 'ucr_crime_monthly', 'CA#CA01942#2024#07'
+COLUMN  CELL
+ agency:city timestamp=2025-01-01T00:00, value=LOS ANGELES
+ agency:core_city timestamp=2025-01-01T00:00, value=Y
+ agency:division timestamp=2025-01-01T00:00, value=9
+ agency:last_update timestamp=2025-01-01T00:00, value=040126
+ agency:month timestamp=2025-01-01T00:00, value=07
+ agency:name timestamp=2025-01-01T00:00, value=LOS ANGELES POLICE DEPARTMENT
+ agency:ori timestamp=2025-01-01T00:00, value=CA01942
+ agency:pop_bucket timestamp=2025-01-01T00:00, value=250k+
+ agency:pop_group timestamp=2025-01-01T00:00, value=1A
+ agency:population timestamp=2025-01-01T00:00, value=003796352
+ agency:state timestamp=2025-01-01T00:00, value=CA
+ agency:type timestamp=2025-01-01T00:00, value=City
+ agency:year timestamp=2025-01-01T00:00, value=2024
+ clearances:agg_assault timestamp=2025-01-01T00:00, value=000496
+ clearances:burglary timestamp=2025-01-01T00:00, value=000061
+ clearances:larceny timestamp=2025-01-01T00:00, value=000171
+ clearances:murder timestamp=2025-01-01T00:00, value=000009
+ clearances:mvt timestamp=2025-01-01T00:00, value=000008
+ clearances:property_total timestamp=2025-01-01T00:00, value=000240
+ clearances:rape timestamp=2025-01-01T00:00, value=000026
+ clearances:robbery timestamp=2025-01-01T00:00, value=000123
+ clearances:u18_violent_total timestamp=2025-01-01T00:00, value=000021
+ clearances:violent_total timestamp=2025-01-01T00:00, value=000654
+ property:burglary timestamp=2025-01-01T00:00, value=001065
+ property:burglary_forcible timestamp=2025-01-01T00:00, value=000751
+ property:larceny timestamp=2025-01-01T00:00, value=001315
+ property:mvt timestamp=2025-01-01T00:00, value=000104
+ property:total timestamp=2025-01-01T00:00, value=002484
+ violent:agg_assault timestamp=2025-01-01T00:00, value=001654
+ violent:assault_gun timestamp=2025-01-01T00:00, value=000426
+ violent:manslaughter timestamp=2025-01-01T00:00, value=000000
+ violent:murder timestamp=2025-01-01T00:00, value=000021
+ violent:rape timestamp=2025-01-01T00:00, value=000157
+ violent:robbery timestamp=2025-01-01T00:00, value=000703
+ violent:robbery_gun timestamp=2025-01-01T00:00, value=000174
+ violent:simple_assault timestamp=2025-01-01T00:00, value=003090
+ violent:total timestamp=2025-01-01T00:00, value=002535
+1 row(s)
+Took 0.4622 seconds
+hbase:011:0> 
+hbase:012:0> # only selected qualifiers from several families
+hbase:013:0> get 'ucr_crime_monthly', 'CA#CA01942#2024#07', {COLUMN => ['agency:name', 'violent:murder', 'violent:total', 'clearances:violent_total']}
+COLUMN  CELL
+ agency:name timestamp=2025-01-01T00:00, value=LOS ANGELES POLICE DEPARTMENT
+ clearances:violent_total timestamp=2025-01-01T00:00, value=000654
+ violent:murder timestamp=2025-01-01T00:00, value=000021
+ violent:total timestamp=2025-01-01T00:00, value=002535
+1 row(s)
+Took 0.0360 seconds
+hbase:014:0> 
+hbase:015:0> # ===== B. PREFIX SCAN (ROWPREFIXFILTER) ====================================
+hbase:016:0> # one agency, one year: the 12 months of LAPD 2024 come back in key order
+hbase:017:0> scan 'ucr_crime_monthly', {ROWPREFIXFILTER => 'CA#CA01942#2024#', COLUMNS => ['violent:murder', 'violent:total', 'property:total']}
+ROW  COLUMN+CELL
+ CA#CA01942#2024#01 column=property:total, timestamp=2025-01-01T00:00, value=009545
+ CA#CA01942#2024#01 column=violent:murder, timestamp=2025-01-01T00:00, value=000026
+ CA#CA01942#2024#01 column=violent:total, timestamp=2025-01-01T00:00, value=002503
+ CA#CA01942#2024#02 column=property:total, timestamp=2025-01-01T00:00, value=008623
+ CA#CA01942#2024#02 column=violent:murder, timestamp=2025-01-01T00:00, value=000029
+ CA#CA01942#2024#02 column=violent:total, timestamp=2025-01-01T00:00, value=002264
+ CA#CA01942#2024#03 column=property:total, timestamp=2025-01-01T00:00, value=008383
+ CA#CA01942#2024#03 column=violent:murder, timestamp=2025-01-01T00:00, value=000018
+ CA#CA01942#2024#03 column=violent:total, timestamp=2025-01-01T00:00, value=001915
+ CA#CA01942#2024#04 column=property:total, timestamp=2025-01-01T00:00, value=007182
+ CA#CA01942#2024#04 column=violent:murder, timestamp=2025-01-01T00:00, value=000011
+ CA#CA01942#2024#04 column=violent:total, timestamp=2025-01-01T00:00, value=001307
+ CA#CA01942#2024#05 column=property:total, timestamp=2025-01-01T00:00, value=002203
+ CA#CA01942#2024#05 column=violent:murder, timestamp=2025-01-01T00:00, value=000016
+ CA#CA01942#2024#05 column=violent:total, timestamp=2025-01-01T00:00, value=002045
+ CA#CA01942#2024#06 column=property:total, timestamp=2025-01-01T00:00, value=002526
+ CA#CA01942#2024#06 column=violent:murder, timestamp=2025-01-01T00:00, value=000031
+ CA#CA01942#2024#06 column=violent:total, timestamp=2025-01-01T00:00, value=002475
+ CA#CA01942#2024#07 column=property:total, timestamp=2025-01-01T00:00, value=002484
+ CA#CA01942#2024#07 column=violent:murder, timestamp=2025-01-01T00:00, value=000021
+ CA#CA01942#2024#07 column=violent:total, timestamp=2025-01-01T00:00, value=002535
+ CA#CA01942#2024#08 column=property:total, timestamp=2025-01-01T00:00, value=002647
+ CA#CA01942#2024#08 column=violent:murder, timestamp=2025-01-01T00:00, value=000021
+ CA#CA01942#2024#08 column=violent:total, timestamp=2025-01-01T00:00, value=002450
+ CA#CA01942#2024#09 column=property:total, timestamp=2025-01-01T00:00, value=002440
+ CA#CA01942#2024#09 column=violent:murder, timestamp=2025-01-01T00:00, value=000016
+ CA#CA01942#2024#09 column=violent:total, timestamp=2025-01-01T00:00, value=002381
+ CA#CA01942#2024#10 column=property:total, timestamp=2025-01-01T00:00, value=002598
+ CA#CA01942#2024#10 column=violent:murder, timestamp=2025-01-01T00:00, value=000015
+ CA#CA01942#2024#10 column=violent:total, timestamp=2025-01-01T00:00, value=002323
+ CA#CA01942#2024#11 column=property:total, timestamp=2025-01-01T00:00, value=002316
+ CA#CA01942#2024#11 column=violent:murder, timestamp=2025-01-01T00:00, value=000023
+ CA#CA01942#2024#11 column=violent:total, timestamp=2025-01-01T00:00, value=002097
+ CA#CA01942#2024#12 column=property:total, timestamp=2025-01-01T00:00, value=003932
+ CA#CA01942#2024#12 column=violent:murder, timestamp=2025-01-01T00:00, value=000018
+ CA#CA01942#2024#12 column=violent:total, timestamp=2025-01-01T00:00, value=002063
+12 row(s)
+Took 0.0387 seconds
+hbase:018:0> 
+hbase:019:0> # ===== C. RANGE SCAN (STARTROW / STOPROW) ==================================
+hbase:020:0> # NYPD (NY03030) from Oct 2023 up to (not incl.) Apr 2024 - crosses a year boundary
+hbase:021:0> scan 'ucr_crime_monthly', {STARTROW => 'NY#NY03030#2023#10', STOPROW => 'NY#NY03030#2024#04', COLUMNS => ['agency:name', 'violent:robbery', 'violent:total']}
+ROW  COLUMN+CELL
+ NY#NY03030#2023#10 column=agency:name, timestamp=2025-01-01T00:00, value=NEW YORK CITY POLICE DEPT
+ NY#NY03030#2023#10 column=violent:robbery, timestamp=2025-01-01T00:00, value=001582
+ NY#NY03030#2023#10 column=violent:total, timestamp=2025-01-01T00:00, value=005028
+ NY#NY03030#2023#11 column=agency:name, timestamp=2025-01-01T00:00, value=NEW YORK CITY POLICE DEPT
+ NY#NY03030#2023#11 column=violent:robbery, timestamp=2025-01-01T00:00, value=001398
+ NY#NY03030#2023#11 column=violent:total, timestamp=2025-01-01T00:00, value=004421
+ NY#NY03030#2023#12 column=agency:name, timestamp=2025-01-01T00:00, value=NEW YORK CITY POLICE DEPT
+ NY#NY03030#2023#12 column=violent:robbery, timestamp=2025-01-01T00:00, value=001578
+ NY#NY03030#2023#12 column=violent:total, timestamp=2025-01-01T00:00, value=004671
+ NY#NY03030#2024#01 column=agency:name, timestamp=2025-01-01T00:00, value=NEW YORK CITY POLICE DEPT
+ NY#NY03030#2024#01 column=violent:robbery, timestamp=2025-01-01T00:00, value=001424
+ NY#NY03030#2024#01 column=violent:total, timestamp=2025-01-01T00:00, value=004445
+ NY#NY03030#2024#02 column=agency:name, timestamp=2025-01-01T00:00, value=NEW YORK CITY POLICE DEPT
+ NY#NY03030#2024#02 column=violent:robbery, timestamp=2025-01-01T00:00, value=001242
+ NY#NY03030#2024#02 column=violent:total, timestamp=2025-01-01T00:00, value=004165
+ NY#NY03030#2024#03 column=agency:name, timestamp=2025-01-01T00:00, value=NEW YORK CITY POLICE DEPT
+ NY#NY03030#2024#03 column=violent:robbery, timestamp=2025-01-01T00:00, value=001289
+ NY#NY03030#2024#03 column=violent:total, timestamp=2025-01-01T00:00, value=004610
+6 row(s)
+Took 0.0346 seconds
+hbase:022:0> 
+hbase:023:0> # every Vermont agency-month (state prefix), first 10 rows only
+hbase:024:0> scan 'ucr_crime_monthly', {ROWPREFIXFILTER => 'VT#', COLUMNS => ['agency:name', 'violent:total'], LIMIT => 10}
+ROW  COLUMN+CELL
+ VT#VT00100#2023#07 column=agency:name, timestamp=2025-01-01T00:00, value=ADDISON COUNTY
+ VT#VT00100#2023#07 column=violent:total, timestamp=2025-01-01T00:00, value=000000
+ VT#VT00100#2023#08 column=agency:name, timestamp=2025-01-01T00:00, value=ADDISON COUNTY
+ VT#VT00100#2023#08 column=violent:total, timestamp=2025-01-01T00:00, value=000000
+ VT#VT00100#2023#09 column=agency:name, timestamp=2025-01-01T00:00, value=ADDISON COUNTY
+ VT#VT00100#2023#09 column=violent:total, timestamp=2025-01-01T00:00, value=000000
+ VT#VT00100#2023#11 column=agency:name, timestamp=2025-01-01T00:00, value=ADDISON COUNTY
+ VT#VT00100#2023#11 column=violent:total, timestamp=2025-01-01T00:00, value=000000
+ VT#VT00100#2023#12 column=agency:name, timestamp=2025-01-01T00:00, value=ADDISON COUNTY
+ VT#VT00100#2023#12 column=violent:total, timestamp=2025-01-01T00:00, value=000000
+ VT#VT00100#2024#04 column=agency:name, timestamp=2025-01-01T00:00, value=ADDISON COUNTY
+ VT#VT00100#2024#04 column=violent:total, timestamp=2025-01-01T00:00, value=000000
+ VT#VT00100#2024#05 column=agency:name, timestamp=2025-01-01T00:00, value=ADDISON COUNTY
+ VT#VT00100#2024#05 column=violent:total, timestamp=2025-01-01T00:00, value=000000
+ VT#VT00101#2023#01 column=agency:name, timestamp=2025-01-01T00:00, value=BRISTOL POLICE DEPARTMENT
+ VT#VT00101#2023#01 column=violent:total, timestamp=2025-01-01T00:00, value=000000
+ VT#VT00101#2023#03 column=agency:name, timestamp=2025-01-01T00:00, value=BRISTOL POLICE DEPARTMENT
+ VT#VT00101#2023#03 column=violent:total, timestamp=2025-01-01T00:00, value=000000
+ VT#VT00101#2023#04 column=agency:name, timestamp=2025-01-01T00:00, value=BRISTOL POLICE DEPARTMENT
+ VT#VT00101#2023#04 column=violent:total, timestamp=2025-01-01T00:00, value=000000
+10 row(s)
+Took 0.0201 seconds
+hbase:025:0> 
+hbase:026:0> # ===== D. COLUMN-FAMILY & QUALIFIER FILTERING ===============================
+hbase:027:0> # University police agencies with >= 15 burglaries in a single month.
+hbase:028:0> # Counts are zero-padded ("000015") so byte comparison == numeric comparison.
+hbase:029:0> # filterIfMissing=true, latestVersionOnly=true
+hbase:030:0> scan 'ucr_crime_monthly', {COLUMNS => ['agency:name', 'agency:type', 'property:burglary'], FILTER => "SingleColumnValueFilter('agency','type',=,'binary:University',true,true) AND SingleColumnValueFilter('property','burglary',>=,'binary:000015',true,true)"}
+ROW  COLUMN+CELL
+ CA#CA01997#2023#03 column=agency:name, timestamp=2025-01-01T00:00, value=UNIVERSITY OF CA: LOS ANGELES
+ CA#CA01997#2023#03 column=agency:type, timestamp=2025-01-01T00:00, value=University
+ CA#CA01997#2023#03 column=property:burglary, timestamp=2025-01-01T00:00, value=000016
+ CA#CA01997#2023#08 column=agency:name, timestamp=2025-01-01T00:00, value=UNIVERSITY OF CA: LOS ANGELES
+ CA#CA01997#2023#08 column=agency:type, timestamp=2025-01-01T00:00, value=University
+ CA#CA01997#2023#08 column=property:burglary, timestamp=2025-01-01T00:00, value=000019
+ CA#CA01997#2024#11 column=agency:name, timestamp=2025-01-01T00:00, value=UNIVERSITY OF CA: LOS ANGELES
+ CA#CA01997#2024#11 column=agency:type, timestamp=2025-01-01T00:00, value=University
+ CA#CA01997#2024#11 column=property:burglary, timestamp=2025-01-01T00:00, value=000017
+ CA#CA04297#2024#08 column=agency:name, timestamp=2025-01-01T00:00, value=UNIV OF CA: SANTA BARBARA
+ CA#CA04297#2024#08 column=agency:type, timestamp=2025-01-01T00:00, value=University
+ CA#CA04297#2024#08 column=property:burglary, timestamp=2025-01-01T00:00, value=000018
+ CA#CA04297#2024#10 column=agency:name, timestamp=2025-01-01T00:00, value=UNIV OF CA: SANTA BARBARA
+ CA#CA04297#2024#10 column=agency:type, timestamp=2025-01-01T00:00, value=University
+ CA#CA04297#2024#10 column=property:burglary, timestamp=2025-01-01T00:00, value=000015
+ CT#CT00504#2024#07 column=agency:name, timestamp=2025-01-01T00:00, value=YALE UNIVERSITY
+ CT#CT00504#2024#07 column=agency:type, timestamp=2025-01-01T00:00, value=University
+ CT#CT00504#2024#07 column=property:burglary, timestamp=2025-01-01T00:00, value=000016
+ FL#FL04814#2024#12 column=agency:name, timestamp=2025-01-01T00:00, value=UNIVERSITY OF CENTRAL FLORIDA
+ FL#FL04814#2024#12 column=agency:type, timestamp=2025-01-01T00:00, value=University
+ FL#FL04814#2024#12 column=property:burglary, timestamp=2025-01-01T00:00, value=000031
+ IL#IL01007#2023#10 column=agency:name, timestamp=2025-01-01T00:00, value=UNIVERSITY OF ILLINOIS: URBANA
+ IL#IL01007#2023#10 column=agency:type, timestamp=2025-01-01T00:00, value=University
+ IL#IL01007#2023#10 column=property:burglary, timestamp=2025-01-01T00:00, value=000022
+ IL#IL01007#2024#05 column=agency:name, timestamp=2025-01-01T00:00, value=UNIVERSITY OF ILLINOIS: URBANA
+ IL#IL01007#2024#05 column=agency:type, timestamp=2025-01-01T00:00, value=University
+ IL#IL01007#2024#05 column=property:burglary, timestamp=2025-01-01T00:00, value=000023
+ IL#IL01007#2024#06 column=agency:name, timestamp=2025-01-01T00:00, value=UNIVERSITY OF ILLINOIS: URBANA
+ IL#IL01007#2024#06 column=agency:type, timestamp=2025-01-01T00:00, value=University
+ IL#IL01007#2024#06 column=property:burglary, timestamp=2025-01-01T00:00, value=000016
+ IN#IN05302#2024#12 column=agency:name, timestamp=2025-01-01T00:00, value=INDIANA UNIVERSITY:BLOOMINGTON
+ IN#IN05302#2024#12 column=agency:type, timestamp=2025-01-01T00:00, value=University
+ IN#IN05302#2024#12 column=property:burglary, timestamp=2025-01-01T00:00, value=000017
+ LA#LA01704#2023#01 column=agency:name, timestamp=2025-01-01T00:00, value=LA STATE UNIV: BATON ROUGE
+ LA#LA01704#2023#01 column=agency:type, timestamp=2025-01-01T00:00, value=University
+ LA#LA01704#2023#01 column=property:burglary, timestamp=2025-01-01T00:00, value=000015
+ MI#MI73719#2024#11 column=agency:name, timestamp=2025-01-01T00:00, value=SAGINAW VALLEY STATE UNIV
+ MI#MI73719#2024#11 column=agency:type, timestamp=2025-01-01T00:00, value=University
+ MI#MI73719#2024#11 column=property:burglary, timestamp=2025-01-01T00:00, value=000024
+ OH#OH02527#2024#10 column=agency:name, timestamp=2025-01-01T00:00, value=OHIO STATE UNIV: COLUMBUS
+ OH#OH02527#2024#10 column=agency:type, timestamp=2025-01-01T00:00, value=University
+ OH#OH02527#2024#10 column=property:burglary, timestamp=2025-01-01T00:00, value=000017
+ TX#TX10132#2024#03 column=agency:name, timestamp=2025-01-01T00:00, value=UNIV OF HOUSTON:CENTRAL CAMPUS
+ TX#TX10132#2024#03 column=agency:type, timestamp=2025-01-01T00:00, value=University
+ TX#TX10132#2024#03 column=property:burglary, timestamp=2025-01-01T00:00, value=000017
+15 row(s)
+Took 4.1081 seconds
+hbase:031:0> 
+hbase:032:0> # only the 'clearances' family of one row (FamilyFilter)
+hbase:033:0> scan 'ucr_crime_monthly', {ROWPREFIXFILTER => 'CA#CA01942#2024#01', FILTER => "FamilyFilter(=,'binary:clearances')"}
+ROW  COLUMN+CELL
+ CA#CA01942#2024#01 column=clearances:agg_assault, timestamp=2025-01-01T00:00, value=000809
+ CA#CA01942#2024#01 column=clearances:burglary, timestamp=2025-01-01T00:00, value=000184
+ CA#CA01942#2024#01 column=clearances:larceny, timestamp=2025-01-01T00:00, value=000304
+ CA#CA01942#2024#01 column=clearances:murder, timestamp=2025-01-01T00:00, value=000019
+ CA#CA01942#2024#01 column=clearances:mvt, timestamp=2025-01-01T00:00, value=000102
+ CA#CA01942#2024#01 column=clearances:property_total, timestamp=2025-01-01T00:00, value=000590
+ CA#CA01942#2024#01 column=clearances:rape, timestamp=2025-01-01T00:00, value=000076
+ CA#CA01942#2024#01 column=clearances:robbery, timestamp=2025-01-01T00:00, value=000216
+ CA#CA01942#2024#01 column=clearances:u18_violent_total, timestamp=2025-01-01T00:00, value=000036
+ CA#CA01942#2024#01 column=clearances:violent_total, timestamp=2025-01-01T00:00, value=001120
+1 row(s)
+Took 0.0795 seconds
+hbase:034:0> 
+hbase:035:0> # only qualifiers starting with 'robbery' (ColumnPrefixFilter) for LAPD Q1 2024
+hbase:036:0> scan 'ucr_crime_monthly', {STARTROW => 'CA#CA01942#2024#01', STOPROW => 'CA#CA01942#2024#04', FILTER => "ColumnPrefixFilter('robbery')"}
+ROW  COLUMN+CELL
+ CA#CA01942#2024#01 column=clearances:robbery, timestamp=2025-01-01T00:00, value=000216
+ CA#CA01942#2024#01 column=violent:robbery, timestamp=2025-01-01T00:00, value=000757
+ CA#CA01942#2024#01 column=violent:robbery_gun, timestamp=2025-01-01T00:00, value=000255
+ CA#CA01942#2024#02 column=clearances:robbery, timestamp=2025-01-01T00:00, value=000224
+ CA#CA01942#2024#02 column=violent:robbery, timestamp=2025-01-01T00:00, value=000669
+ CA#CA01942#2024#02 column=violent:robbery_gun, timestamp=2025-01-01T00:00, value=000193
+ CA#CA01942#2024#03 column=clearances:robbery, timestamp=2025-01-01T00:00, value=000200
+ CA#CA01942#2024#03 column=violent:robbery, timestamp=2025-01-01T00:00, value=000540
+ CA#CA01942#2024#03 column=violent:robbery_gun, timestamp=2025-01-01T00:00, value=000130
+3 row(s)
+Took 0.0199 seconds
+hbase:037:0> 
+hbase:038:0> # ===== E. SECONDARY ACCESS PATTERN (index table) ============================
+hbase:039:0> # "University agencies in California, 2024" - prefix scan on the index table
+hbase:040:0> scan 'ucr_idx_type_year', {ROWPREFIXFILTER => 'University#2024#CA#', LIMIT => 15}
+ROW  COLUMN+CELL
+ University#2024#CA#CA00115#01 column=ref:burglary, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#01 column=ref:main_key, timestamp=2025-01-01T00:00, value=CA#CA00115#2024#01
+ University#2024#CA#CA00115#01 column=ref:name, timestamp=2025-01-01T00:00, value=CA STATE UNIVERSITY: EAST BAY
+ University#2024#CA#CA00115#01 column=ref:property_total, timestamp=2025-01-01T00:00, value=000002
+ University#2024#CA#CA00115#01 column=ref:violent_total, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#02 column=ref:burglary, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#02 column=ref:main_key, timestamp=2025-01-01T00:00, value=CA#CA00115#2024#02
+ University#2024#CA#CA00115#02 column=ref:name, timestamp=2025-01-01T00:00, value=CA STATE UNIVERSITY: EAST BAY
+ University#2024#CA#CA00115#02 column=ref:property_total, timestamp=2025-01-01T00:00, value=000004
+ University#2024#CA#CA00115#02 column=ref:violent_total, timestamp=2025-01-01T00:00, value=000001
+ University#2024#CA#CA00115#03 column=ref:burglary, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#03 column=ref:main_key, timestamp=2025-01-01T00:00, value=CA#CA00115#2024#03
+ University#2024#CA#CA00115#03 column=ref:name, timestamp=2025-01-01T00:00, value=CA STATE UNIVERSITY: EAST BAY
+ University#2024#CA#CA00115#03 column=ref:property_total, timestamp=2025-01-01T00:00, value=000004
+ University#2024#CA#CA00115#03 column=ref:violent_total, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#04 column=ref:burglary, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#04 column=ref:main_key, timestamp=2025-01-01T00:00, value=CA#CA00115#2024#04
+ University#2024#CA#CA00115#04 column=ref:name, timestamp=2025-01-01T00:00, value=CA STATE UNIVERSITY: EAST BAY
+ University#2024#CA#CA00115#04 column=ref:property_total, timestamp=2025-01-01T00:00, value=000002
+ University#2024#CA#CA00115#04 column=ref:violent_total, timestamp=2025-01-01T00:00, value=000001
+ University#2024#CA#CA00115#05 column=ref:burglary, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#05 column=ref:main_key, timestamp=2025-01-01T00:00, value=CA#CA00115#2024#05
+ University#2024#CA#CA00115#05 column=ref:name, timestamp=2025-01-01T00:00, value=CA STATE UNIVERSITY: EAST BAY
+ University#2024#CA#CA00115#05 column=ref:property_total, timestamp=2025-01-01T00:00, value=000006
+ University#2024#CA#CA00115#05 column=ref:violent_total, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#06 column=ref:burglary, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#06 column=ref:main_key, timestamp=2025-01-01T00:00, value=CA#CA00115#2024#06
+ University#2024#CA#CA00115#06 column=ref:name, timestamp=2025-01-01T00:00, value=CA STATE UNIVERSITY: EAST BAY
+ University#2024#CA#CA00115#06 column=ref:property_total, timestamp=2025-01-01T00:00, value=000002
+ University#2024#CA#CA00115#06 column=ref:violent_total, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#07 column=ref:burglary, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#07 column=ref:main_key, timestamp=2025-01-01T00:00, value=CA#CA00115#2024#07
+ University#2024#CA#CA00115#07 column=ref:name, timestamp=2025-01-01T00:00, value=CA STATE UNIVERSITY: EAST BAY
+ University#2024#CA#CA00115#07 column=ref:property_total, timestamp=2025-01-01T00:00, value=000002
+ University#2024#CA#CA00115#07 column=ref:violent_total, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#08 column=ref:burglary, timestamp=2025-01-01T00:00, value=000001
+ University#2024#CA#CA00115#08 column=ref:main_key, timestamp=2025-01-01T00:00, value=CA#CA00115#2024#08
+ University#2024#CA#CA00115#08 column=ref:name, timestamp=2025-01-01T00:00, value=CA STATE UNIVERSITY: EAST BAY
+ University#2024#CA#CA00115#08 column=ref:property_total, timestamp=2025-01-01T00:00, value=000011
+ University#2024#CA#CA00115#08 column=ref:violent_total, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#09 column=ref:burglary, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#09 column=ref:main_key, timestamp=2025-01-01T00:00, value=CA#CA00115#2024#09
+ University#2024#CA#CA00115#09 column=ref:name, timestamp=2025-01-01T00:00, value=CA STATE UNIVERSITY: EAST BAY
+ University#2024#CA#CA00115#09 column=ref:property_total, timestamp=2025-01-01T00:00, value=000008
+ University#2024#CA#CA00115#09 column=ref:violent_total, timestamp=2025-01-01T00:00, value=000002
+ University#2024#CA#CA00115#10 column=ref:burglary, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#10 column=ref:main_key, timestamp=2025-01-01T00:00, value=CA#CA00115#2024#10
+ University#2024#CA#CA00115#10 column=ref:name, timestamp=2025-01-01T00:00, value=CA STATE UNIVERSITY: EAST BAY
+ University#2024#CA#CA00115#10 column=ref:property_total, timestamp=2025-01-01T00:00, value=000005
+ University#2024#CA#CA00115#10 column=ref:violent_total, timestamp=2025-01-01T00:00, value=000001
+ University#2024#CA#CA00115#11 column=ref:burglary, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#11 column=ref:main_key, timestamp=2025-01-01T00:00, value=CA#CA00115#2024#11
+ University#2024#CA#CA00115#11 column=ref:name, timestamp=2025-01-01T00:00, value=CA STATE UNIVERSITY: EAST BAY
+ University#2024#CA#CA00115#11 column=ref:property_total, timestamp=2025-01-01T00:00, value=000001
+ University#2024#CA#CA00115#11 column=ref:violent_total, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#12 column=ref:burglary, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00115#12 column=ref:main_key, timestamp=2025-01-01T00:00, value=CA#CA00115#2024#12
+ University#2024#CA#CA00115#12 column=ref:name, timestamp=2025-01-01T00:00, value=CA STATE UNIVERSITY: EAST BAY
+ University#2024#CA#CA00115#12 column=ref:property_total, timestamp=2025-01-01T00:00, value=000001
+ University#2024#CA#CA00115#12 column=ref:violent_total, timestamp=2025-01-01T00:00, value=000000
+ University#2024#CA#CA00197#01 column=ref:burglary, timestamp=2025-01-01T00:00, value=000005
+ University#2024#CA#CA00197#01 column=ref:main_key, timestamp=2025-01-01T00:00, value=CA#CA00197#2024#01
+ University#2024#CA#CA00197#01 column=ref:name, timestamp=2025-01-01T00:00, value=UNIVERSITY OF CA: BERKELEY
+ University#2024#CA#CA00197#01 column=ref:property_total, timestamp=2025-01-01T00:00, value=000067
+ University#2024#CA#CA00197#01 column=ref:violent_total, timestamp=2025-01-01T00:00, value=000003
+ University#2024#CA#CA00197#02 column=ref:burglary, timestamp=2025-01-01T00:00, value=000004
+ University#2024#CA#CA00197#02 column=ref:main_key, timestamp=2025-01-01T00:00, value=CA#CA00197#2024#02
+ University#2024#CA#CA00197#02 column=ref:name, timestamp=2025-01-01T00:00, value=UNIVERSITY OF CA: BERKELEY
+ University#2024#CA#CA00197#02 column=ref:property_total, timestamp=2025-01-01T00:00, value=000063
+ University#2024#CA#CA00197#02 column=ref:violent_total, timestamp=2025-01-01T00:00, value=000008
+ University#2024#CA#CA00197#03 column=ref:burglary, timestamp=2025-01-01T00:00, value=000006
+ University#2024#CA#CA00197#03 column=ref:main_key, timestamp=2025-01-01T00:00, value=CA#CA00197#2024#03
+ University#2024#CA#CA00197#03 column=ref:name, timestamp=2025-01-01T00:00, value=UNIVERSITY OF CA: BERKELEY
+ University#2024#CA#CA00197#03 column=ref:property_total, timestamp=2025-01-01T00:00, value=000078
+ University#2024#CA#CA00197#03 column=ref:violent_total, timestamp=2025-01-01T00:00, value=000006
+15 row(s)
+Took 0.0559 seconds
+hbase:041:0> 
+hbase:042:0> # ===== F. CLUSTER / REGION LAYOUT ==========================================
+hbase:043:0> list_regions 'ucr_crime_monthly'
+                                                   SERVER_NAME |                                                          REGION_NAME |  START_KEY |    END_KEY |  SIZE |   REQ |   LOCALITY |
+ ------------------------------------------------------------- | -------------------------------------------------------------------- | ---------- | ---------- | ----- | ----- | ---------- |
+ ucr-regionserver.bigdataanalytics_default,16020,1795096322431 |   ucr_crime_monthly,,1795096378154.d1213208e6908bc4a009c501b33773a3. |            |         CO |    75 | 34161 |        0.0 |
+ ucr-regionserver.bigdataanalytics_default,16020,1795096322431 | ucr_crime_monthly,CO,1795096378154.2c0161c25b1a2052b96c9f1fbc345708. |         CO |         IN |    92 | 41537 |        0.0 |
+ ucr-regionserver.bigdataanalytics_default,16020,1795096322431 | ucr_crime_monthly,IN,1795096378154.71ccc5ebcd07d3d74e487a32741964c8. |         IN |         MI |    78 | 35246 |        0.0 |
+ ucr-regionserver.bigdataanalytics_default,16020,1795096322431 | ucr_crime_monthly,MI,1795096378154.09709239167aec312edae0cfd3157885. |         MI |         NC |    78 | 35532 |        0.0 |
+ ucr-regionserver.bigdataanalytics_default,16020,1795096322431 | ucr_crime_monthly,NC,1795096378154.c652ad40ce66a659228664fae1f78c9c. |         NC |         OH |    93 | 41945 |        0.0 |
+ ucr-regionserver.bigdataanalytics_default,16020,1795096322431 | ucr_crime_monthly,OH,1795096378154.49cff75ba2108b6ff3a8cc85600abe47. |         OH |         PA |    55 | 25016 |        0.0 |
+ ucr-regionserver.bigdataanalytics_default,16020,1795096322431 | ucr_crime_monthly,PA,1795096378154.157d1653e4377c91cf8acd5dcb4cfb9d. |         PA |         TX |    80 | 35992 |        0.0 |
+ ucr-regionserver.bigdataanalytics_default,16020,1795096322431 | ucr_crime_monthly,TX,1795096378154.210250dfe4b4802cd2eebfd1703e385c. |         TX |            |   121 | 54600 |        0.0 |
+ 8 rows
+Took 0.1776 seconds
+hbase:044:0> exit

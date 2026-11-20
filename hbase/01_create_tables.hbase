@@ -1,0 +1,40 @@
+# ---------------------------------------------------------------------------
+# 01_create_tables.hbase   -  run:  hbase shell /hbase-scripts/01_create_tables.hbase
+# ---------------------------------------------------------------------------
+# Main table. RowKey = STATE#ORI#YEAR#MM  (e.g. CA#CA01942#2024#07)
+#   * 'agency'     static descriptors          -> keep 1 version
+#   * 'violent'    actual violent offenses     -> keep 3 versions (FBI revises counts)
+#   * 'property'   actual property offenses    -> keep 3 versions
+#   * 'clearances' offenses cleared by arrest  -> keep 3 versions
+# Pre-split into 8 regions on state boundaries (split points computed from the
+# real key distribution by scripts/make_hbase_tsv.py) so no single region
+# (e.g. the one holding CA or TX) becomes a write hotspot during the bulk load.
+
+begin
+  disable 'ucr_crime_monthly'; drop 'ucr_crime_monthly'
+rescue => e
+end
+begin
+  disable 'ucr_idx_type_year'; drop 'ucr_idx_type_year'
+rescue => e
+end
+
+create 'ucr_crime_monthly',
+  {NAME => 'agency',     VERSIONS => 1, BLOOMFILTER => 'ROW'},
+  {NAME => 'violent',    VERSIONS => 3, BLOOMFILTER => 'ROW'},
+  {NAME => 'property',   VERSIONS => 3, BLOOMFILTER => 'ROW'},
+  {NAME => 'clearances', VERSIONS => 3, BLOOMFILTER => 'ROW'},
+  SPLITS => ['CO', 'IN', 'MI', 'NC', 'OH', 'PA', 'TX']
+
+# Secondary "index" table for a second access pattern.
+# RowKey = AGENCYTYPE#YEAR#STATE#ORI#MM  (e.g. University#2024#CA#CA01997#11)
+# "All university agencies in 2024" becomes a cheap prefix scan instead of a
+# full scan of the main table.
+create 'ucr_idx_type_year',
+  {NAME => 'ref', VERSIONS => 1},
+  SPLITS => ['City#2024', 'County', 'State_Police']
+
+describe 'ucr_crime_monthly'
+list_regions 'ucr_crime_monthly'
+list
+exit

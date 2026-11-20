@@ -1,0 +1,100 @@
+# Pseudo-distributed Hadoop + ZooKeeper + HBase + Apache Drill
+# Every daemon is a separate JVM in its own container:
+#   namenode, datanode (HDFS) | zookeeper | hmaster | regionserver | thrift | drill
+#
+#   docker compose build          # first time (~1 GB of Apache tarballs)
+#   docker compose up -d
+#
+# Web UIs:  HDFS NameNode http://localhost:9870   HBase Master http://localhost:16010
+#           RegionServer  http://localhost:16030  Drill        http://localhost:8047
+
+x-bigdata: &bigdata
+  image: ucr-bigdata:hadoop3.3.6-hbase2.5.10   # built once by the namenode service
+  pull_policy: never
+  volumes:
+    - ./conf:/opt/conf:ro
+    - ./ucr_data:/data/ucr          # dataset + HBase TSVs
+    - ./hbase:/hbase-scripts:ro     # .hbase shell scripts
+  restart: unless-stopped
+
+services:
+  namenode:
+    <<: *bigdata
+    hostname: namenode
+    container_name: ucr-namenode
+    build: ./docker               # the only service that builds the shared image
+    pull_policy: build
+    command: ["namenode"]
+    environment: { HADOOP_HEAPSIZE_MAX: 512m }
+    ports: ["9870:9870", "9000:9000"]
+    volumes:
+      - ./conf:/opt/conf:ro
+      - ./ucr_data:/data/ucr
+      - ./hbase:/hbase-scripts:ro
+      - namenode-data:/data/hdfs
+
+  datanode:
+    <<: *bigdata
+    hostname: datanode
+    container_name: ucr-datanode
+    command: ["datanode"]
+    environment: { HADOOP_HEAPSIZE_MAX: 512m }
+    ports: ["9864:9864"]
+    volumes:
+      - ./conf:/opt/conf:ro
+      - datanode-data:/data/hdfs
+    depends_on: [namenode]
+
+  zookeeper:
+    image: zookeeper:3.8
+    hostname: zookeeper
+    container_name: ucr-zookeeper
+    ports: ["2181:2181"]
+    restart: unless-stopped
+
+  hmaster:
+    <<: *bigdata
+    hostname: hmaster
+    container_name: ucr-hmaster
+    command: ["hmaster"]
+    environment: { HBASE_HEAPSIZE: 1G }
+    ports: ["16000:16000", "16010:16010"]
+    depends_on: [namenode, datanode, zookeeper]
+
+  regionserver:
+    <<: *bigdata
+    hostname: regionserver
+    container_name: ucr-regionserver
+    command: ["regionserver"]
+    environment: { HBASE_HEAPSIZE: 1536M }
+    ports: ["16020:16020", "16030:16030"]
+    depends_on: [hmaster]
+
+  thrift:                         # for the Python/happybase loader
+    <<: *bigdata
+    hostname: thrift
+    container_name: ucr-thrift
+    command: ["thrift"]
+    environment: { HBASE_HEAPSIZE: 512M }
+    ports: ["9090:9090"]
+    depends_on: [hmaster]
+
+  drill:
+    image: apache/drill:1.21.2
+    hostname: drill
+    container_name: ucr-drill
+    environment:                  # Drill defaults to 4G heap + 8G direct memory: too much
+      DRILL_HEAP: 1G              # next to six Hadoop/HBase JVMs on one laptop
+      DRILL_MAX_DIRECT_MEMORY: 2G
+    stdin_open: true              # drill-embedded needs an attached stdin
+    tty: true
+    ports: ["8047:8047", "31010:31010"]
+    volumes:
+      - ./ucr_data:/data/ucr
+      - ./drill:/drill-scripts:ro
+    depends_on: [regionserver]
+    restart: unless-stopped
+
+volumes:
+  namenode-data:
+  datanode-data:

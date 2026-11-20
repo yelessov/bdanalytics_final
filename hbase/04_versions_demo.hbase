@@ -1,0 +1,35 @@
+# ---------------------------------------------------------------------------
+# 04_versions_demo.hbase - multi-version cells (VERSIONS => 3)
+#   docker exec -it ucr-hmaster hbase shell /hbase-scripts/04_versions_demo.hbase
+#
+# Scenario: the FBI revises past monthly counts as agencies resubmit data
+# (Return A has a per-month "date of last update" field for exactly this).
+# The bulk load wrote every cell with ts = 2025-01-01. I simulate two later
+# revisions of LAPD's January-2024 murder count and read the history back.
+# (The revision values are illustrative; the original value is the real one.)
+# ---------------------------------------------------------------------------
+
+# original value from the FBI file (one version)
+get 'ucr_crime_monthly', 'CA#CA01942#2024#01', {COLUMN => 'violent:murder', VERSIONS => 3}
+
+# revision 1 (2025-02-01) and revision 2 (2025-03-01)
+put 'ucr_crime_monthly', 'CA#CA01942#2024#01', 'violent:murder', '000027', 1738368000000
+put 'ucr_crime_monthly', 'CA#CA01942#2024#01', 'violent:murder', '000028', 1740787200000
+
+# all three versions, newest first
+get 'ucr_crime_monthly', 'CA#CA01942#2024#01', {COLUMN => 'violent:murder', VERSIONS => 3}
+
+# time travel: what did the table say before the first revision?
+get 'ucr_crime_monthly', 'CA#CA01942#2024#01', {COLUMN => 'violent:murder', TIMERANGE => [0, 1738368000000]}
+
+# a 4th version pushes the oldest out: the family only keeps 3
+put 'ucr_crime_monthly', 'CA#CA01942#2024#01', 'violent:murder', '000026', 1743465600000
+get 'ucr_crime_monthly', 'CA#CA01942#2024#01', {COLUMN => 'violent:murder', VERSIONS => 3}
+
+# the 'agency' family was created with VERSIONS => 1: only the latest survives
+put 'ucr_crime_monthly', 'CA#CA01942#2024#01', 'agency:name', 'LAPD (renamed test)', 1738368000000
+get 'ucr_crime_monthly', 'CA#CA01942#2024#01', {COLUMN => 'agency:name', VERSIONS => 3}
+# restore the real name as the newest version
+put 'ucr_crime_monthly', 'CA#CA01942#2024#01', 'agency:name', 'LOS ANGELES POLICE DEPARTMENT', 1743465600000
+get 'ucr_crime_monthly', 'CA#CA01942#2024#01', {COLUMN => 'agency:name', VERSIONS => 3}
+exit

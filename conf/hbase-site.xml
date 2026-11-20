@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<configuration>
+  <!-- fully separate daemons: HMaster, RegionServer, external ZooKeeper, HDFS -->
+  <property><name>hbase.cluster.distributed</name><value>true</value></property>
+  <property><name>hbase.rootdir</name><value>hdfs://namenode:9000/hbase</value></property>
+  <property><name>hbase.zookeeper.quorum</name><value>zookeeper</value></property>
+  <property><name>hbase.zookeeper.property.clientPort</name><value>2181</value></property>
+  <property><name>hbase.tmp.dir</name><value>/data/tmp/hbase</value></property>
+  <property><name>hbase.fs.tmp.dir</name><value>/tmp/hbase-staging</value></property>
+  <!-- ImportTsv runs its MapReduce job with the LocalJobRunner (no YARN needed
+       on a laptop); input and HFile output still live on HDFS -->
+  <property><name>mapreduce.framework.name</name><value>local</value></property>
+  <property><name>hbase.bulkload.retries.number</name><value>10</value></property>
+  <!-- give the client generous timeouts on a slow laptop VM -->
+  <property><name>hbase.rpc.timeout</name><value>120000</value></property>
+  <property><name>hbase.client.scanner.timeout.period</name><value>120000</value></property>
+</configuration>

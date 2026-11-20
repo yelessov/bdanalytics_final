@@ -1,0 +1,42 @@
+== 1. copy TSVs into HDFS
+WARNING: log4j.properties is not found. HADOOP_CONF_DIR may be incomplete.
+2026-11-19 13:53:04,331 WARN  [main] util.NativeCodeLoader (NativeCodeLoader.java:<clinit>(60)) - Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+WARNING: log4j.properties is not found. HADOOP_CONF_DIR may be incomplete.
+2026-11-19 13:53:05,157 WARN  [main] util.NativeCodeLoader (NativeCodeLoader.java:<clinit>(60)) - Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+WARNING: log4j.properties is not found. HADOOP_CONF_DIR may be incomplete.
+2026-11-19 13:53:06,549 WARN  [main] util.NativeCodeLoader (NativeCodeLoader.java:<clinit>(60)) - Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+WARNING: log4j.properties is not found. HADOOP_CONF_DIR may be incomplete.
+2026-11-19 13:53:08,161 WARN  [main] util.NativeCodeLoader (NativeCodeLoader.java:<clinit>(60)) - Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Found 1 items
+-rw-r--r--   1 root supergroup     81.2 M 2026-11-19 13:53 /ucr/input/main/ucr_crime_monthly.tsv
+Found 1 items
+-rw-r--r--   1 root supergroup     25.9 M 2026-11-19 13:53 /ucr/input/idx/ucr_idx_type_year.tsv
+WARNING: log4j.properties is not found. HADOOP_CONF_DIR may be incomplete.
+2026-11-19 13:53:09,064 WARN  [main] util.NativeCodeLoader (NativeCodeLoader.java:<clinit>(60)) - Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+== 2. ImportTsv -> HFiles for ucr_crime_monthly
+== 3. completebulkload ucr_crime_monthly
+== ucr_crime_monthly loaded in 40s
+== 2. ImportTsv -> HFiles for ucr_idx_type_year
+== 3. completebulkload ucr_idx_type_year
+== ucr_idx_type_year loaded in 13s
+== 4. row counts
+hbase:001:0> count 'ucr_crime_monthly', INTERVAL => 100000, CACHE => 10000
+Current count: 100000, row: MA#MA00820#2023#06
+Current count: 200000, row: OH#OH07906#2024#07
+Current count: 300000, row: WV#WV02701#2023#09
+303957 row(s)
+Took 4.5334 seconds
+=> 303957
+hbase:002:0> 
+hbase:001:0> count 'ucr_idx_type_year', INTERVAL => 100000, CACHE => 10000
+Current count: 100000, row: City#2023#VA#VA04602#10
+Current count: 200000, row: City#2024#TX#TX03106#04
+Current count: 300000, row: University#2024#LA#LA01704#11
+303957 row(s)
+Took 1.2395 seconds
+=> 303957
+hbase:002:0> 
+WARNING: log4j.properties is not found. HADOOP_CONF_DIR may be incomplete.
+2026-11-19 13:54:15,802 WARN  [main] util.NativeCodeLoader (NativeCodeLoader.java:<clinit>(60)) - Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+675.5 M  675.5 M  /hbase/data/default/ucr_crime_monthly
+103.8 M  103.8 M  /hbase/data/default/ucr_idx_type_year

@@ -1,0 +1,5 @@
+agency_type,agencies,violent,property,violent_share_pct,larceny_share_of_property_pct,burglary_share_of_property_pct,violent_cleared_pct,property_cleared_pct
+City,10815,948068,4693328,16.8,72.6,12.5,42.7,15.9
+County,3025,230547,993990,18.8,69.3,16.6,48.0,15.0
+State Police,563,13272,41899,24.1,73.1,15.6,61.9,37.6
+University,657,3062,46863,6.1,81.2,7.1,37.0,10.6

@@ -1,0 +1,12 @@
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# data (too big for github, download from the FBI CDE and run ./run.sh prepare)
+ucr_data/raw/*.txt
+ucr_data/ucr_monthly.csv
+ucr_data/hbase/
+
+# mac
+.DS_Store

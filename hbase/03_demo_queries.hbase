@@ -1,0 +1,43 @@
+# ---------------------------------------------------------------------------
+# 03_demo_queries.hbase - core HBase access patterns on the real FBI data.
+# Run all:   docker exec -it ucr-hmaster hbase shell /hbase-scripts/03_demo_queries.hbase
+# (or open `docker exec -it ucr-hmaster hbase shell` and paste one block at a time)
+# ---------------------------------------------------------------------------
+
+# A. Single-row get
+# LAPD (ORI CA01942), July 2024 - every column of one agency-month
+get 'ucr_crime_monthly', 'CA#CA01942#2024#07'
+
+# only selected qualifiers from several families
+get 'ucr_crime_monthly', 'CA#CA01942#2024#07', {COLUMN => ['agency:name', 'violent:murder', 'violent:total', 'clearances:violent_total']}
+
+# B. Prefix scan (rowprefixfilter)
+# one agency, one year: the 12 months of LAPD 2024 come back in key order
+scan 'ucr_crime_monthly', {ROWPREFIXFILTER => 'CA#CA01942#2024#', COLUMNS => ['violent:murder', 'violent:total', 'property:total']}
+
+# C. Range scan (startrow / stoprow)
+# NYPD (NY03030) from Oct 2023 up to (not incl.) Apr 2024 - crosses a year boundary
+scan 'ucr_crime_monthly', {STARTROW => 'NY#NY03030#2023#10', STOPROW => 'NY#NY03030#2024#04', COLUMNS => ['agency:name', 'violent:robbery', 'violent:total']}
+
+# every Vermont agency-month (state prefix), first 10 rows only
+scan 'ucr_crime_monthly', {ROWPREFIXFILTER => 'VT#', COLUMNS => ['agency:name', 'violent:total'], LIMIT => 10}
+
+# D. Column-family & qualifier filtering
+# University police agencies with >= 15 burglaries in a single month.
+# Counts are zero-padded ("000015") so byte comparison == numeric comparison.
+# filterIfMissing=true, latestVersionOnly=true
+scan 'ucr_crime_monthly', {COLUMNS => ['agency:name', 'agency:type', 'property:burglary'], FILTER => "SingleColumnValueFilter('agency','type',=,'binary:University',true,true) AND SingleColumnValueFilter('property','burglary',>=,'binary:000015',true,true)"}
+
+# only the 'clearances' family of one row (FamilyFilter)
+scan 'ucr_crime_monthly', {ROWPREFIXFILTER => 'CA#CA01942#2024#01', FILTER => "FamilyFilter(=,'binary:clearances')"}
+
+# only qualifiers starting with 'robbery' (ColumnPrefixFilter) for LAPD Q1 2024
+scan 'ucr_crime_monthly', {STARTROW => 'CA#CA01942#2024#01', STOPROW => 'CA#CA01942#2024#04', FILTER => "ColumnPrefixFilter('robbery')"}
+
+# E. Secondary access pattern (index table)
+# "University agencies in California, 2024" - prefix scan on the index table
+scan 'ucr_idx_type_year', {ROWPREFIXFILTER => 'University#2024#CA#', LIMIT => 15}
+
+# F. Cluster / region layout
+list_regions 'ucr_crime_monthly'
+exit
